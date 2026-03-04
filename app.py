@@ -9,17 +9,31 @@ st.title("📊 Base SAP S4 - Prévia")
 def carregar_dados():
     url = "https://drive.google.com/uc?id=1Lm-G9ZJUC2Hzc9iIKIb6LCemYJqtzNQO"
     gdown.download(url, "dados.xlsx", quiet=True)
-    return pd.read_excel("dados.xlsx")
+    colunas = ["CompanyCode", "agrupador_fpa", "FiscalPeriod", "AmountInCompanyCodeCurrency"]
+    return pd.read_excel("dados.xlsx", usecols=colunas)
 
 df = carregar_dados()
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Linhas", df.shape[0])
-col2.metric("Colunas", df.shape[1])
-col3.metric("Células", df.shape[0] * df.shape[1])
+# Filtro por Company
+companies = sorted(df["CompanyCode"].dropna().unique())
+selecionadas = st.multiselect("🏢 Filtrar por Company Code", companies, default=companies)
 
-st.subheader("📋 Dados")
-st.dataframe(df, use_container_width=True)
+df_filtrado = df[df["CompanyCode"].isin(selecionadas)]
 
-with st.expander("📈 Estatísticas"):
-    st.dataframe(df.describe(), use_container_width=True)
+# Pivot Table
+pivot = df_filtrado.pivot_table(
+    index="agrupador_fpa",
+    columns="FiscalPeriod",
+    values="AmountInCompanyCodeCurrency",
+    aggfunc="sum",
+    fill_value=0
+)
+
+# Formatar colunas de mês
+pivot.columns = [f"Mês {int(c)}" for c in pivot.columns]
+
+# Total por linha
+pivot["Total"] = pivot.sum(axis=1)
+
+st.subheader("📋 Soma por Agrupador FP&A x Mês")
+st.dataframe(pivot.style.format("{:,.2f}"), use_container_width=True)
