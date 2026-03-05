@@ -1,0 +1,4 @@
+*.xlsx
+*.csv
+.claude/
+__pycache__/
