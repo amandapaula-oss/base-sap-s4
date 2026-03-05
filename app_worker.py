@@ -133,13 +133,14 @@ def calcular_metricas(df, group_col):
         df['_gm_pond'] = df['gross_margin'] * df['receita_liquida']
         agg_dict['_gm_pond'] = ('_gm_pond', 'sum')
 
+
     g = df.groupby(group_col, as_index=False).agg(**agg_dict)
     safe_rl = g['receita_liquida'].replace(0, float('nan'))
-    g['margem_bruta_calculada'] = g['lucro_bruto'] / safe_rl
-
     if group_col == 'worker_id':
-        g['margem_bruta_arquivo'] = g['_gm_pond'] / safe_rl
+        g['margem_bruta'] = g['_gm_pond'] / safe_rl
         g = g.drop(columns=['_gm_pond'])
+    else:
+        g['margem_bruta'] = g['lucro_bruto'] / safe_rl
 
     g = g.sort_values('receita_bruta', ascending=False).reset_index(drop=True)
     return g
@@ -153,18 +154,16 @@ def formatar_tabela(df, group_col):
         display[group_col] = display[group_col].map(nomes).fillna(display[group_col])
         display.columns = [
             LEVEL_LABELS.get(group_col, group_col),
-            'Receita Bruta', 'Receita Líquida', 'Custo', 'Lucro Bruto',
-            'Margem Bruta %', 'Margem Bruta (arquivo) %',
+            'Receita Bruta', 'Receita Líquida', 'Custo', 'Lucro Bruto', 'Margem Bruta %',
         ]
         fmt = {
-            'Receita Bruta':            'R$ {:,.0f}',
-            'Receita Líquida':          'R$ {:,.0f}',
-            'Custo':                    'R$ {:,.0f}',
-            'Lucro Bruto':              'R$ {:,.0f}',
-            'Margem Bruta %':           '{:.1%}',
-            'Margem Bruta (arquivo) %': '{:.1%}',
+            'Receita Bruta':   'R$ {:,.0f}',
+            'Receita Líquida': 'R$ {:,.0f}',
+            'Custo':           'R$ {:,.0f}',
+            'Lucro Bruto':     'R$ {:,.0f}',
+            'Margem Bruta %':  '{:.1%}',
         }
-        neg_cols = ['Lucro Bruto', 'Margem Bruta %', 'Margem Bruta (arquivo) %']
+        neg_cols = ['Lucro Bruto', 'Margem Bruta %']
     else:
         display.columns = [
             LEVEL_LABELS.get(group_col, group_col),
