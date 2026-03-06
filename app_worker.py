@@ -104,7 +104,7 @@ def carregar_nomes():
 @st.cache_data(persist="disk")
 def carregar_dados():
     if not os.path.exists("worker.xlsx"):
-        gdown.download(id="1rqT1PVnd8kQq5VIDrWw1kXF21dwT3T5M", output="worker.xlsx", quiet=True)
+        gdown.download(id="13ORJ-dpxKXVF6sVy3Ex0Fp-hOLhxM8H_", output="worker.xlsx", quiet=True)
     df = pd.read_excel("worker.xlsx", sheet_name="receita_worker")
     df['lucro_bruto'] = df['receita_liquida'] - df['cost']
     return df
@@ -143,6 +143,24 @@ def calcular_metricas(df, group_col):
         g['margem_bruta'] = g['lucro_bruto'] / safe_rl
 
     g = g.sort_values('receita_bruta', ascending=False).reset_index(drop=True)
+
+    # Linha de total
+    total_rl = g['receita_liquida'].sum()
+    if group_col == 'worker_id':
+        total_gm = (g['margem_bruta'] * g['receita_liquida']).sum() / total_rl if total_rl else 0
+    else:
+        total_lb = g['lucro_bruto'].sum()
+        total_gm = total_lb / total_rl if total_rl else 0
+
+    total_row = {
+        group_col:        'Total',
+        'receita_bruta':  g['receita_bruta'].sum(),
+        'receita_liquida':total_rl,
+        'custo':          g['custo'].sum(),
+        'lucro_bruto':    g['lucro_bruto'].sum(),
+        'margem_bruta':   total_gm,
+    }
+    g = pd.concat([pd.DataFrame([total_row]), g], ignore_index=True)
     return g
 
 def formatar_tabela(df, group_col):
@@ -178,10 +196,14 @@ def formatar_tabela(df, group_col):
         }
         neg_cols = ['Lucro Bruto', 'Margem Bruta %']
 
+    total_idx = display.index[display.iloc[:, 0] == 'Total'].tolist()
+
     styled = display.style \
         .format(fmt) \
         .map(lambda v: 'color: #c0392b' if isinstance(v, (int, float)) and v < 0 else '',
-             subset=neg_cols)
+             subset=neg_cols) \
+        .apply(lambda s: ['font-weight:bold; background-color:#dce6f7; color:#1a2e5a'
+                          if s.name in total_idx else '' for _ in s], axis=1)
     return styled
 
 def fmt_brl(v):
@@ -301,9 +323,20 @@ chart_data.index.name = 'Competência'
 chart_data.columns = [metrica_label]
 st.bar_chart(chart_data, color='#2d50a0')
 
-# Tabela mensal formatada
-tabela_mensal = mensal.copy()
+# Tabela mensal formatada com linha de Total
+total_mensal_rl = mensal['receita_liquida'].sum()
+total_mensal_lb = mensal['lucro_bruto'].sum()
+total_mensal_row = pd.DataFrame([{
+    'competencia':    'Total',
+    'receita_bruta':  mensal['receita_bruta'].sum(),
+    'custo':          mensal['custo'].sum(),
+    'receita_liquida':total_mensal_rl,
+    'lucro_bruto':    total_mensal_lb,
+    'margem_bruta':   total_mensal_lb / total_mensal_rl if total_mensal_rl else 0,
+}])
+tabela_mensal = pd.concat([total_mensal_row, mensal], ignore_index=True)
 tabela_mensal.columns = ['Competência', 'Receita Bruta', 'Receita Líquida', 'Custo', 'Lucro Bruto', 'Margem Bruta %']
+total_idx_mensal = tabela_mensal.index[tabela_mensal['Competência'] == 'Total'].tolist()
 st.dataframe(
     tabela_mensal.style
         .format({
@@ -314,7 +347,9 @@ st.dataframe(
             'Margem Bruta %':  '{:.1%}',
         })
         .map(lambda v: 'color: #c0392b' if isinstance(v, (int, float)) and v < 0 else '',
-             subset=['Lucro Bruto', 'Margem Bruta %']),
+             subset=['Lucro Bruto', 'Margem Bruta %'])
+        .apply(lambda s: ['font-weight:bold; background-color:#dce6f7; color:#1a2e5a'
+                          if s.name in total_idx_mensal else '' for _ in s], axis=1),
     width='stretch',
     hide_index=True,
 )
