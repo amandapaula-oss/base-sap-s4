@@ -2,8 +2,42 @@ import os
 import streamlit as st
 import pandas as pd
 import gdown
+import streamlit_authenticator as stauth
 
 st.set_page_config(page_title="Worker Dashboard", layout="wide", initial_sidebar_state="collapsed")
+
+# ── Autenticação ────────────────────────────────────────────────────────────────
+
+_credentials = {
+    "usernames": {
+        "amanda": {
+            "name": "Amanda",
+            "password": "$2b$12$LhVCB/A6/rhZcc64CngsiOZv50tr1Ug.l6umx1flyhVH3PK/4stHW",
+        },
+        "paola": {
+            "name": "Paola",
+            "password": "$2b$12$hHOykdFr2kIH4wzixfR2pOZ1RUZpEZlfV3XEDdEdRdsclEOOOrmK6",
+        },
+    }
+}
+
+authenticator = stauth.Authenticate(
+    _credentials,
+    "worker_dashboard",
+    "wk_secret_key_2024",
+    cookie_expiry_days=1,
+)
+
+authenticator.login()
+auth_status = st.session_state.get("authentication_status")
+
+if auth_status is False:
+    st.error("Usuário ou senha incorretos.")
+    st.stop()
+elif auth_status is None:
+    st.stop()
+
+authenticator.logout("Sair", "sidebar")
 
 st.markdown("""
 <style>
